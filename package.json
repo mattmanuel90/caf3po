@@ -1,0 +1,17 @@
+{
+  "name": "caf3po",
+  "version": "1.0.0",
+  "description": "A slackbot that reminds you what you did yesterday so you can wing your daily standup. Supports Jira/Slack/Zendesk.",
+  "main": "index.js",
+  "scripts": {
+    "caf3po": "node ./src/index.js"
+  },
+  "author": "Matthew Manuel",
+  "license": "ISC",
+  "dependencies": {
+    "botkit": "^0.5.0",
+    "dotenv": "^4.0.0",
+    "jira-client": "^6.4.0",
+    "zendesk-node-api": "^1.2.0"
+  }
+}
