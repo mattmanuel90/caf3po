@@ -10,6 +10,8 @@ Useful for morning daily standups with the midweek hangover and also if your laz
 
 Ideally you want the bot to message you every morning during the week.
 
+![alt text](https://s3-eu-west-1.amazonaws.com/mmbucketofmiscstuff/caf3po_ss.png "Slack")
+
 ### Requires
 Node 8.4.0
 
