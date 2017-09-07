@@ -13,6 +13,6 @@ Ideally you want the bot to message you every morning during the week.
 ### Requires
 Node 8.4.0
 
-### Credits
+### Original contributors
 GiovanniIncammicia
 adrianhr91
