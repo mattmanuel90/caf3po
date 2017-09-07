@@ -1,5 +1,5 @@
 ### Caf3po
-A rewrite/revival of our CAF hackathon slackbot in 2016. He lives on!
+A rewrite/revival of our CAF hackathon slackbot in 2016. It lives on!
 
 Caf3po will summarise:
 * Your current open tasks/tickets on Zendesk/Jira
@@ -12,3 +12,7 @@ Ideally you want the bot to message you every morning during the week.
 
 ### Requires
 Node 8.4.0
+
+### Credits
+GiovanniIncammicia
+adrianhr91
