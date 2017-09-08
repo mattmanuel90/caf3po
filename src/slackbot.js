@@ -39,9 +39,8 @@ const configureSummaryCommand = async (controller) => {
   controller.hears(['summary'], 'direct_message, direct_mention, mention', (bot, message) => {
     let channel = message.channel;
     bot.api.users.info({user: message.user}, (error, response) => {
-      console.log(message.user);
       bot.say({
-        text: `Hi ${message.user}, this is your daily summary. Just hang on for a bit.`,
+        text: `Hi ${response.user.name}, this is your daily summary. Just hang on for a bit.`,
         channel: channel
       });
       printJiraSummary(channel, response.user);

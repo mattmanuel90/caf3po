@@ -26,7 +26,7 @@ const groupTickets = (tickets) => {
 }
 
 exports.getZendeskTickets = async (status) => {
-	let obj = [];
+	let text = [];
 	let groupedTickets = await zendesk.search
 	.list(`query=type:ticket status<closed`)
 	.then(tickets => groupTickets(tickets));
@@ -37,7 +37,7 @@ exports.getZendeskTickets = async (status) => {
 		for (let ticket of groupedTickets[group]) {
 			listofTickets += `><${process.env.ZENDESK_URL}/agent/tickets/${ticket.id}|#${ticket.id}> - ${ticket.subject} *Last Updated: ${moment(ticket.updated_at).fromNow()}*\n`;
 		}
-		obj.push({message,listofTickets});
+		text.push({message,listofTickets});
 	}		
-	return obj;
+	return text;
 };
