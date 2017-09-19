@@ -1,31 +1,34 @@
 var moment = require('moment');
-let JiraApi = require('jira-client');
+let request = require('request');
 
-exports.getJiraSummary = async () => {
-  let jira = new JiraApi({
-    protocol: 'https',
-    host: process.env.JIRA_HOST,
-    username: process.env.JIRA_USER,
-    password: process.env.JIRA_PASSWORD,
-    apiVersion: '2',
-    strictSSL: true
-  });
+var DAYS_TO_FETCH = 365;
 
-  const response = () => { 
-    return new Promise( async (resolve,reject)=> {
-      try {
-        const results = await jira.searchJira(
-        `assignee="${process.env.JIRA_USER}" AND status in ('To Do', 'In Progress', Reopened)`
-        ,{maxResults:15, expand:["changelog"]});
-        resolve(results);
-      } catch (err) {
-        console.error(err);
-        reject(err);
-      }
+exports.getJiraSummary = async (user) => {
+  const jiraQuery = `assignee="${user}" AND  status in ('To Do', 'In Progress', Reopened)`;
+  var options = {
+    method: 'POST',
+    url: process.env.JIRA_HOST + '/rest/api/2/search',
+    body: {jql: jiraQuery, "maxResults": 15, expand: ['changelog']},
+    json: true,
+    headers: {
+      'Authorization': 'Basic ' + process.env.JIRA_AUTH,
+      'Content-Type': 'application/json'
+    }
+  };
+
+  const doRequest = (url)=> {
+    return new Promise((resolve, reject)=>{
+      request(options, (error, response, body) => {
+        if(!error && response.statusCode == 200){
+          resolve(body);
+        } else {
+          reject(error);
+        }
+      });
     });
   }
 
-  let {issues,total} = await response();
+  let {issues,total} = await doRequest();
   let appendedString = `*JIRA* \n :open_book: You have ${total} issues open.`;
   for(let issue of issues) {
     appendedString += `\n${getIssueSummary(issue)} *Last Updated: ${moment(issue.fields.updated).fromNow()}*`;
@@ -45,18 +48,17 @@ const getIssueSummary = (issue) => {
 const getStatusTransitions = (issues) => {
   if(issues == null)
     return;
-
-  const getEarliestTimeStamp = (num) => moment().subtract(num,'d').startOf('day').unix();
+  
   let statusTransitions = [];
   for (let issue of issues) {
     for (let history of issue.changelog.histories) {
   
-      var yesterday = getEarliestTimeStamp(1);
+      var yesterday = moment().subtract(DAYS_TO_FETCH,'d').startOf('day').unix();
       var changeDate = moment(history.created).unix();
 
       for (let item of history.items) {
         if (item.field == 'status' && changeDate > yesterday) {
-          statusTransitions.push({from: item.fromString, to: item.toString, issue: issue});
+          statusTransitions.push({from: item.fromString, to: item.toString, issue});
         }
       }
     }
@@ -73,10 +75,26 @@ const getStatusTransitionsString = (issues) => {
   if(transitions.length == 0)
     return `\n :rocket: You did nothing yesterday on your JIRA tickets.`;
 
-  var appendedString = `\n :rocket: What you did yesterday:`;
-  for (let trans of transitions) {
-    var issue = trans.issue;
-    appendedString += `\n${getIssueSummary(issue)} Moved from *${trans.from}* to *${trans.to}*`;
+  var appendedString = `\n :rocket: What you did ${DAYS_TO_FETCH} day(s) ago.`;
+
+  let groupedTransitions = [];
+
+  for (let transition of transitions) {
+    if(!groupedTransitions[transition.issue.key]) {
+      groupedTransitions[transition.issue.key] = [];
+      groupedTransitions[transition.issue.key].push({
+        issue: transition.issue,
+        transit: [transition.from, transition.to]
+      });
+    } else {
+      groupedTransitions[transition.issue.key][0].transit.push(transition.to);
+    }
+  }
+
+  for (let key in groupedTransitions) {
+    for(let {issue, transit} of groupedTransitions[key]) {
+      appendedString += `\n${getIssueSummary(issue)} Moved from *'${transit.join(`' to '`)}'*`;
+    }
   }
   return appendedString;
 }

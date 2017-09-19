@@ -6,7 +6,7 @@ var bot;
 
 const printJiraSummary = async (channel, user) => {
   bot.say({
-    text: await jira.getJiraSummary(),
+    text: await jira.getJiraSummary(user),
     channel: channel
   });
 }
@@ -20,7 +20,7 @@ const printZendeskTickets = (channel, user) => {
     });
     return appendedString;
   }
-  zendesk.getZendeskTickets().then(tickets => {
+  zendesk.getZendeskTickets(user).then(tickets => {
     bot.say({
       attachments: [{"color": "#36a64f"}],
       channel: channel,
@@ -31,20 +31,86 @@ const printZendeskTickets = (channel, user) => {
 
 const configureGreetingCommand = async (controller) => {
   controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', (bot, message) => {
-      bot.reply(message, `Hello, I am CAF-3PO, human cyborg relations. How might I serve you?`);
+      bot.reply(message, `Hello, I am CAF-3PO, human cyborg relations. How can I help you?`);
   });
 }
 
 const configureSummaryCommand = async (controller) => {
   controller.hears(['summary'], 'direct_message, direct_mention, mention', (bot, message) => {
     let channel = message.channel;
+    let emailToBeUsed = "";
+
+    const fetchActivity = async (c, emailToBeUsed) => {
+      await printJiraSummary(channel, emailToBeUsed);
+      await printZendeskTickets(channel, emailToBeUsed);
+      c.next();
+    }
+
     bot.api.users.info({user: message.user}, (error, response) => {
-      bot.say({
-        text: `Hi ${response.user.name}, this is your daily summary. Just hang on for a bit.`,
-        channel: channel
+
+      bot.startConversation(message, (err, convo) => {
+        var emailToBeUsed = '';
+
+        convo.addMessage({
+          text: `Hi ${response.user.name}, Just want to remind you what you did yesterday on JIRA and Zendesk.`,
+          action: 'promptQuestion'
+        }, 'summaryGreeting');
+
+        convo.addMessage({
+          text: `Sweet! Okay checking activity on {{vars.email}}`,
+          action: 'fetchSummaryActivity'
+        }, 'emailConfirmation');
+
+        convo.beforeThread('fetchSummaryActivity',  async (con, next) => {
+          await printZendeskTickets(channel, emailToBeUsed);
+          await printJiraSummary(channel, emailToBeUsed);
+          await next();
+        });
+
+        convo.addMessage({
+          text: `Do you need anymore help?`
+        }, 'fetchSummaryActivity');
+
+        convo.addQuestion(`*Q:* Can I assume that your account on both services is ${response.user.profile.email}?`, [
+        {
+          pattern: bot.utterances.yes,
+          callback: (res, con) => {
+            emailToBeUsed = response.user.profile.email;
+            con.setVar('email', emailToBeUsed);
+            con.gotoThread('emailConfirmation');
+            con.next();
+          }
+        },
+        {
+          pattern: bot.utterances.no,
+          callback: (res, con) => {
+            con.say(`My baaaaaad`);
+            con.ask('*Q:* Aight, so what email shall I use?',(res, con) => {
+              emailToBeUsed = `${res.text.split('|')[1].slice(0, -1)}`;
+              con.setVar('email', emailToBeUsed);
+              con.gotoThread('emailConfirmation');
+              con.next();
+            });
+            con.next();
+          }
+        },
+        {
+          pattern: bot.utterances.quit,
+          callback: (res, con) => {
+            con.say(`No worries`);
+            con.next();
+          }
+        },
+        {
+          default: true,
+          callback: (res,con) =>{
+            con.repeat();
+            con.next();
+          }
+        }
+        ], {} , 'promptQuestion');
+        convo.gotoThread('summaryGreeting');
       });
-      printJiraSummary(channel, response.user);
-      printZendeskTickets(channel, response.user);
     });
   });
 }
